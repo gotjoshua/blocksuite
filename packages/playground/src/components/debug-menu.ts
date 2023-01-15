@@ -13,10 +13,12 @@ import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
 import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
 import '@shoelace-style/shoelace/dist/components/select/select.js';
 import '@shoelace-style/shoelace/dist/components/color-picker/color-picker.js';
+import '@shoelace-style/shoelace/dist/components/range/range.js';
 import type {
   SlColorPicker,
   SlDropdown,
   SlSelect,
+  SlRange,
 } from '@shoelace-style/shoelace';
 import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path.js';
 
@@ -57,6 +59,12 @@ export class DebugMenu extends LitElement {
 
   @state()
   canRedo = false;
+
+  @state()
+  undoSize = 0;
+
+  @state()
+  historySize = 0;
 
   @state()
   mode: 'page' | 'edgeless' = 'page';
@@ -224,10 +232,35 @@ export class DebugMenu extends LitElement {
     }
   }
 
+  private _inputChange(e: CustomEvent) {
+    const target = e.target as SlRange;
+    const value = target.value;
+    let diff = this.undoSize - value;
+
+    if (diff === 0) return;
+
+    const arrow = diff > 0 ? -1 : 1;
+
+    while (diff) {
+      if (arrow === 1) {
+        this.page.redo();
+      } else {
+        this.page.undo();
+      }
+      diff += arrow;
+    }
+    this.undoSize = value;
+  }
+
   firstUpdated() {
+    const range = document.querySelector('#history-range') as SlRange;
     this.page.signals.historyUpdated.on(() => {
       this.canUndo = this.page.canUndo;
       this.canRedo = this.page.canRedo;
+      this.historySize = this.page.undoStackSize + this.page.redoStackSize;
+      this.undoSize = this.page.undoStackSize;
+      range.max = this.historySize;
+      range.value = this.undoSize;
     });
   }
 
@@ -267,9 +300,11 @@ export class DebugMenu extends LitElement {
         }
 
         .default-toolbar {
+          display: flex;
+          flex-wrap: wrap;
           padding: 8px;
           width: 100%;
-          min-width: 390px;
+          min-width: 375px;
         }
 
         .edgeless-toolbar {
@@ -422,6 +457,23 @@ export class DebugMenu extends LitElement {
               <sl-icon name="phone-flip"></sl-icon>
             </sl-button>
           </sl-tooltip>
+
+          <sl-range
+            id="history-range"
+            step="1"
+            min="0"
+            max="${this.historySize}"
+            value="${this.undoSize}"
+            @sl-input=${this._inputChange}
+            style="
+            margin-top: 10px;
+            width: 150px;
+            --thumb-size: 10px;
+            --track-height: 5px;
+  --track-color-active: var(--sl-color-primary-600);
+  --track-color-inactive: var(--sl-color-primary-100);
+  "
+          ></sl-range>
         </div>
 
         <div

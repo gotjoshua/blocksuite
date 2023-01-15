@@ -124,6 +124,14 @@ export class Page extends Space<PageData> {
     return this._history.canRedo();
   }
 
+  get undoStackSize() {
+    return this._history.undoStack.length;
+  }
+
+  get redoStackSize() {
+    return this._history.redoStack.length;
+  }
+
   get Text() {
     return Text;
   }
